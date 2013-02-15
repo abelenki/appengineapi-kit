@@ -11,22 +11,22 @@ import sys, os
 #  - 'lib' for library modules
 #  - 'lib3' for 3rd party modules
 sys.path.append(os.path.join(os.path.dirname(__file__),'app'))
-sys.path.append(os.path.join(os.path.dirname(__file__),'lib'))
-sys.path.append(os.path.join(os.path.dirname(__file__),'lib3'))
+#sys.path.append(os.path.join(os.path.dirname(__file__),'lib'))
+#sys.path.append(os.path.join(os.path.dirname(__file__),'lib3'))
 
 # GAE imports
 import webapp2
 
 # app imports
-from test import apihandler as testapihandler
+from test import apihandler
 
 # CONSTANTS
 DEBUG = True
 
 # route /api/test /api/test/ and /api/test/... messages through to the apihandler
 app = webapp2.WSGIApplication([
-	('/api/test',testapihandler.RequestHandler),
-	('/api/test([\w\/]*)',testapihandler.RequestHandler)
+	('/api/test',apihandler.APIHandler),
+	('/api/test([\w\/]*)',apihandler.APIHandler)
 ],debug=DEBUG)
 
 # add values to the registry
