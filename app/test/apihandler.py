@@ -7,7 +7,7 @@ __author__ = "djt@mutablelogic.com (David Thorpe)"
 import webapp2
 from django.utils import simplejson
 
-class APIHandler(webapp2.RequestHandler):
+class RequestHandler(webapp2.RequestHandler):
 	# Response handlers
 	def response_json(self,code=200,obj=None):
 		assert isinstance(code,int)

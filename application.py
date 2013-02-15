@@ -4,15 +4,20 @@
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
 # Python imports
-import sys, os
+import sys, os, logging
 
 # add python libraries:
 #  - 'app' is for application code
 #  - 'lib' for library modules
 #  - 'lib3' for 3rd party modules
-sys.path.append(os.path.join(os.path.dirname(__file__),'app'))
-#sys.path.append(os.path.join(os.path.dirname(__file__),'lib'))
-#sys.path.append(os.path.join(os.path.dirname(__file__),'lib3'))
+root_path = os.path.abspath(os.path.dirname(__file__))
+code_paths = [
+	os.path.join(root_path,'app'),
+	os.path.join(root_path,'lib'),
+	os.path.join(root_path,'lib3')
+]
+for path in code_paths:
+	if (path not in sys.path) and os.path.exists(path): sys.path.insert(0,path)
 
 # GAE imports
 import webapp2
@@ -20,16 +25,14 @@ import webapp2
 # app imports
 from test import apihandler
 
-# CONSTANTS
-DEBUG = True
-
 # route /api/test /api/test/ and /api/test/... messages through to the apihandler
 app = webapp2.WSGIApplication([
-	('/api/test',apihandler.APIHandler),
-	('/api/test([\w\/]*)',apihandler.APIHandler)
-],debug=DEBUG)
+	('/api/test',apihandler.RequestHandler),
+	('/api/test([\w\/]*)',apihandler.RequestHandler)
+])
 
 # add values to the registry
 app.registry = {
-	'debug': DEBUG
+	'debug': True
 }
+app.debug = app.registry['debug']
