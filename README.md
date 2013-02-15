@@ -85,4 +85,89 @@ to the 'step2' branch to demonstrate this here:
 git checkout -b step2
 ```
 
+In this step, the following files are added and/or modified:
+
+  * The `lib` folder contains a module `appengineapi_kit.api` which
+    defines a general way to deal with API calls
+  * The `test` folder has an updated `apihandler.RequestHandler` which
+    inherits from `appengineapi_kit.api.RequestHandler`
+
+The `apihandler.RequestHandler` has a number of methods which are used to
+implement the general request and response cycle for each API call:
+
+  * The `get`,`post`,`delete` and `put` methods simply route the request
+    through to a general `route_request` method, which pattern matches
+    against your pre-defined API call routes.
+  * The `route_request` method will match the method of the API request
+    and the pre-defined patterns to call specific API handling routines.
+  * The `response_json` method can be used to respond back to the client
+    with a JSON message. For errors, the HTTP status code is set to an
+    appropriate error response code.
+
+Errors are caught when a `appengineapi_kit.api.HTTPException` object
+is raised. In this case, a JSON response is also sent. If you raise other
+exceptions, they will not return a JSON response to the client, so
+it's important to catch errors within your own `RequestHandler` classes
+and re-raise as `HTTPException` objects.
+
+Here is how the updated `apihandler.RequestHandler` class now looks:
+
+```python
+class RequestHandler(api.RequestHandler):
+	def get_object(self,*path):
+		return self.response_json(path)
+	routes = (
+		(api.RequestHandler.METHOD_GET,r"^/?([\w\/]*)$",get_object),
+	)
+```
+
+The potential API calls are defined in the `routes` property of the
+class. This is a series of tuple values in triplets. The first value
+is one of the following values:
+
+  * `api.RequestHandler.METHOD_GET` where the API call is retrieving
+    data
+  * `api.RequestHandler.METHOD_POST` where the API call is creating
+    data
+  * `api.RequestHandler.METHOD_PUT` where the API call is updating
+    data
+  * `api.RequestHandler.METHOD_DELETE` where the API call is deleting
+    data
+
+The second value in each tuple is the regular expression to use when
+matching the path. If no pattern is found by the `route_request` method,
+then a 404 HTTP status message is returned to the client. If you use
+groups within the regular expression, these are passed as arguments
+to your method.
+
+The third value in each tuple is a reference to the method to call
+when the pattern is matched. In the example here, the `get_object`
+method accepts a variable number of arguments and sends a JSON
+response of the path arguments back to the client. Here are some
+examples of how this might work:
+
+```
+   curl -X GET http://localhost:8080/api/test
+   => [""]
+
+   curl -X GET http://localhost:8080/api/test/
+   => [""]
+
+   curl -X GET http://localhost:8080/api/test/fetch
+   => [ "fetch" ]
+
+   curl -X GET http://localhost:8080/api/testfetch
+   => [ "fetch" ]
+```
+
+Data model and data design
+--------------------------
+The third step to build the application is to store some data on the server
+when it's passed through from the client. You can switch to the 'step3' 
+branch to demonstrate this here:
+
+```
+git checkout -b step3
+```
+
 Proceed to this branch where the README.md file contains the next steps.

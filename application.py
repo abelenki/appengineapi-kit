@@ -27,8 +27,7 @@ from test import apihandler
 
 # route /api/test /api/test/ and /api/test/... messages through to the apihandler
 app = webapp2.WSGIApplication([
-	('/api/test',apihandler.RequestHandler),
-	('/api/test([\w\/]*)',apihandler.RequestHandler)
+	('/api/test([\w\/]*)',apihandler.RequestHandler),
 ])
 
 # add values to the registry
