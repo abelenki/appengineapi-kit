@@ -4,7 +4,7 @@
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
 # Python imports
-import re
+import re, logging
 
 # GAE imports
 import webapp2, simplejson
@@ -45,6 +45,92 @@ class HTTPException(Exception):
 	def as_json(self):
 		return { 'code': self.code, 'reason': self.reason }
 
+class ModelProperty(object):
+	def __init__(self,name=None,notnull=None):
+		self._name = name
+		self._notnull = notnull
+	# PROPERTIES
+	def get_name(self):
+		return self._name
+	name = property(get_name)
+	
+	# PUBLIC METHODS
+	def validate(self,name,value):
+		""" Return validated version of a value, or raise an error """
+		if value==None and self._notnull:
+			raise ValueError("ModelProperty.validate: Value cannot be NULL for property '%s'" % name)
+		return value
+	def as_json(self,value):
+		"""Return JSON-compliant value"""
+		if type(value) in (basestring,bool,int,long):
+			return value
+		return "%s" % value
+	
+class StringProperty(ModelProperty):
+	def __init__(self,minlength=None,maxlength=None,**kwargs):
+		ModelProperty.__init__(self,**kwargs)
+		self._minlength = minlength
+		self._maxlength = maxlength
+	def validate(self,name,value):
+		ModelProperty.validate(self,name,value)
+		if value and isinstance(value,basestring) != True:
+			raise ValueError("StringProperty.validate: Not a string for property '%s'" % name)
+		if value and self._minlength != None and len(value) < self._minlength:
+			raise ValueError("StringProperty.validate: MINLENGTH condition fails for property '%s'" % name)
+		if value and self._maxlength != None and len(value) > self._maxlength:
+			raise ValueError("StringProperty.validate: MAXLENGTH condition fails for property '%s'" % name)
+		return value
+
+class Model(object):
+	def __init__(self,**kwargs):
+		self._properties = self._get_properties()
+		self._values = { }
+		for (k,v) in self._properties.iteritems():
+			if k in kwargs:
+				self[k] = kwargs[k]
+			else:
+				self[k] = None
+
+	@classmethod
+	def _get_properties(self):
+		""" Get all model properties as dictionary """
+		properties = { }
+		for name in vars(self):
+			value = getattr(self,name)
+			if isinstance(value,ModelProperty):
+				properties[name] = value
+		return properties
+
+	def _get_property(self,name):
+		return self._properties[name]
+
+	@classmethod
+	def get_model_name(self):
+		"""Return name used to represent the model in communication"""
+		if 'model_name' in vars(self):
+			assert isinstance(self.model_name,basestring) and len(self.model_name),"Model.get_name: Invalid model_name"
+			return self.model_name
+		else:
+			return self.__name__
+
+	def __setitem__(self,name,value):
+		""" Set value for model object """
+		model_property = self._get_property(name)
+		self._values[name] = model_property.validate(name,value)
+        
+	def __getitem__(self,name):
+		""" Get value for model object """
+		return self._values[name]
+		
+	def as_json(self):
+		"""Return model object as JSON with JSON-compliant values"""
+		response = {
+			'_type': self.get_model_name()
+		}
+		for (k,p) in self._properties.iteritems():
+			response[k] = p.as_json(self._values[k])
+		return response
+
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
 
@@ -54,6 +140,15 @@ class RequestHandler(webapp2.RequestHandler):
 	METHOD_DELETE = 2
 	METHOD_PUT = 3
 	
+	# CONSTRUCTOR
+	def __init__(self,*args):
+		webapp2.RequestHandler.__init__(self,*args)
+		# make hash of models which are handled by the API
+		self._models = { }
+		if 'models' in vars(self.__class__):
+			for model in self.models:
+				assert issubclass(model,Model)
+				self._models[model.get_model_name()] = model
 	# PRIVATE METHODS
 	def _get_routes(self):
 		"""Return tuple of routes"""
@@ -61,6 +156,12 @@ class RequestHandler(webapp2.RequestHandler):
 			return None
 		assert isinstance(self.routes,tuple) or isinstance(self.routes,list),"_get_routes: Invalid routes class property"
 		return self.routes
+	def _get_models(self):
+		"""Return tuple of models"""
+		if not 'models' in vars(self.__class__):
+			return None
+		assert isinstance(self.models,tuple) or isinstance(self.routes,list),"_get_models: Invalid models class property"
+		return self.models
 	def _decode_method(self):
 		"""Decode the method into constants"""
 		if self.request.method=='GET':
@@ -72,11 +173,17 @@ class RequestHandler(webapp2.RequestHandler):
 		if self.request.method=='PUT':
 			return RequestHandler.PUT
 		return None
+	def _decode_request_model(self,model,obj):
+		"""Decode request body from JSON into a api.Model object"""
+		raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type %s" % model)
 	def _decode_request(self):
 		"""Decode request body from JSON into a Python object"""
 		try:
 			if self.request.body:
-				return simplejson.loads(self.request.body)
+				request = simplejson.loads(self.request.body)
+				if(isinstance(request,dict) and request.get('_type')):
+					request = self._decode_request_model(request.get('_type'),request)
+				return request
 			else:
 				return None
 		except simplejson.JSONDecodeError, e:
@@ -93,6 +200,8 @@ class RequestHandler(webapp2.RequestHandler):
 			self.response.write(simplejson.dumps(obj.as_json()))
 		elif type(obj) in (basestring,bool,int,long,list,tuple,dict):
 			self.response.write(simplejson.dumps(obj))
+		elif isinstance(obj,Model):
+			self.response.write(obj.as_json())
 		else:
 			e = HTTPException(code=HTTPException.STATUS_SERVERERROR,reason="Invalid response object: %s" % type(obj).__name__)
 			self.error(e.code)

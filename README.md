@@ -170,4 +170,56 @@ branch to demonstrate this here:
 git checkout -b step3
 ```
 
-Proceed to this branch where the README.md file contains the next steps.
+In this step, the following files are added and/or modified:
+
+  * The `appengineapi_kit.api` module contains Model and
+    ModelProperty classes.
+  * The `test` folder has an updated `apihandler.RequestHandler` which
+    defines the models which are allowable instances for API requests
+    and responses.
+
+By defining classes which inherit from `api.Model`, your code can
+create clean interfaces to communicate to and from external clients.
+Here is an example 'AddressBookEntry' model which could be used to
+communicate:
+
+```python
+class AddressBookEntry(api.Model):
+	# MODEL NAME
+	model_name = "AddressBookEntry"
+	# PROPERTIES
+	name = api.StringProperty(notnull=True,minlength=0,maxlength=100)
+	email = api.StringProperty(notnull=False,minlength=0,maxlength=100)
+```
+
+Here the `model_name` property defines the unique name for the interface,
+and the members of the model class are defined as `name` and `email`. Some
+additional parameters are used to limit the values that the members can
+contain.
+
+The request handler `test.RequestHandler` then defines the models which
+will be accepted from clients. For example,
+
+```python
+class RequestHandler(api.RequestHandler):
+	def get_object(self,*path):
+		"""Get AddressBookEntry object"""
+		entry = AddressBookEntry(name="Fred Bloggs",email="fred@bloggs.com")
+		return self.response_json(entry)
+
+	models = (
+		AddressBookEntry,
+	)
+	routes = (
+		(api.RequestHandler.METHOD_GET,r"^/?([\w\/]*)$",get_object),
+	)
+```
+
+Here, there is a single route which returns an `AddressBookEntry` object regardless.
+This is now what happens when communicating with the server:
+
+```
+   curl -X GET http://localhost:8080/api/test
+   => {'_type': 'AddressBookEntry', 'email': 'fred@bloggs.com', 'name': 'Fred Bloggs'}
+```
+
