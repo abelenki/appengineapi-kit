@@ -9,16 +9,21 @@ class AddressBookEntry(api.Model):
 	# MODEL NAME
 	model_name = "AddressBookEntry"
 	# PROPERTIES
-	name = api.StringProperty(name='name',notnull=True,minlength=0,maxlength=100)
-	email = api.StringProperty(name='email',notnull=False,minlength=0,maxlength=100)
+	name = api.StringProperty(notnull=True,minlength=0,maxlength=100)
+	email = api.StringProperty(notnull=False,minlength=0,maxlength=100)
+
+objects = (
+	AddressBookEntry(name="Fred Bloggs",email="fred@bloggs.com"),
+	AddressBookEntry(name="Joan Smith"),
+	AddressBookEntry(name="Roger Jones",email="roger@hotmail.com")	
+)
 
 class RequestHandler(api.RequestHandler):
 	"""Implementation of the Address Book API"""
 
 	def get_object(self,*path):
 		"""Get AddressBookEntry object"""
-		entry = AddressBookEntry(name="Fred Bloggs",email="fred@bloggs.com")
-		return self.response_json(entry)
+		return self.response_json(objects[1])
 
 	models = (
 		AddressBookEntry,

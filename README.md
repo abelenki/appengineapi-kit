@@ -223,3 +223,15 @@ This is now what happens when communicating with the server:
    => {'_type': 'AddressBookEntry', 'email': 'fred@bloggs.com', 'name': 'Fred Bloggs'}
 ```
 
+The method `api.RequestHandler.response_json` returns this response by:
+
+  * Checking if the response should be a `api.HTTPException` response, or,
+  * Checking if the response should be a `dict`, `string`, `bool` or `int`, or,
+  * Checking if the response should be an `api.Model`.
+
+In the third case, the `api.Model.as_json` method is used to decode the model object
+into a json response. As well as the model properties, the `_type` property is used
+to return the `model_name` property.
+
+
+

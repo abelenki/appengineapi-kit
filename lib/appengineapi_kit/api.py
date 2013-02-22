@@ -46,13 +46,10 @@ class HTTPException(Exception):
 		return { 'code': self.code, 'reason': self.reason }
 
 class ModelProperty(object):
-	def __init__(self,name=None,notnull=None):
-		self._name = name
+	"""Abstract Model Property class"""
+
+	def __init__(self,notnull=None):
 		self._notnull = notnull
-	# PROPERTIES
-	def get_name(self):
-		return self._name
-	name = property(get_name)
 	
 	# PUBLIC METHODS
 	def validate(self,name,value):
@@ -67,11 +64,16 @@ class ModelProperty(object):
 		return "%s" % value
 	
 class StringProperty(ModelProperty):
+	"""String Model Property class"""
+	
 	def __init__(self,minlength=None,maxlength=None,**kwargs):
 		ModelProperty.__init__(self,**kwargs)
 		self._minlength = minlength
 		self._maxlength = maxlength
+
+	# PUBLIC METHODS
 	def validate(self,name,value):
+		"""Validate string value against property"""
 		ModelProperty.validate(self,name,value)
 		if value and isinstance(value,basestring) != True:
 			raise ValueError("StringProperty.validate: Not a string for property '%s'" % name)
@@ -81,7 +83,29 @@ class StringProperty(ModelProperty):
 			raise ValueError("StringProperty.validate: MAXLENGTH condition fails for property '%s'" % name)
 		return value
 
+class IntegerProperty(ModelProperty):
+	"""Integer Model Property class"""
+	
+	def __init__(self,minvalue=None,maxvalue=None,**kwargs):
+		ModelProperty.__init__(self,**kwargs)
+		self._minvalue = minvalue
+		self._maxvalue = maxvalue
+
+	# PUBLIC METHODS
+	def validate(self,name,value):
+		"""Validate int or long value against property"""
+		ModelProperty.validate(self,name,value)
+		if value and (isinstance(value,int) or isinstance(value,long)) != True:
+			raise ValueError("IntegerProperty.validate: Not an integer for property '%s'" % name)
+		if value and self._minvalue != None and value < self._minvalue:
+			raise ValueError("IntegerProperty.validate: MINVALUE condition fails for property '%s'" % name)
+		if value and self._maxvalue != None and value > self._maxvalue:
+			raise ValueError("IntegerProperty.validate: MAXVALUE condition fails for property '%s'" % name)
+		return value
+	
 class Model(object):
+	"""Abstract Model class"""
+	
 	def __init__(self,**kwargs):
 		self._properties = self._get_properties()
 		self._values = { }
