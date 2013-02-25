@@ -162,6 +162,7 @@ examples of how this might work:
 
 Data model and data design
 --------------------------
+
 The third step to build the application is to store some data on the server
 when it's passed through from the client. You can switch to the 'step3' 
 branch to demonstrate this here:
@@ -233,5 +234,25 @@ In the third case, the `api.Model.as_json` method is used to decode the model ob
 into a json response. As well as the model properties, the `_type` property is used
 to return the `model_name` property.
 
+Creating, updating and deleting data
+------------------------------------
 
+Now that it's possible to retrieve individual objects from the API, we can turn our
+attention to the client being able to create, update and delete remote data objects.
+To do this, one needs to be able to address each individual object uniquely, and for
+this each Model needs to have a "key". You can switch to the 'step4' 
+branch to demonstrate this here:
+
+```
+git checkout -b step4
+```
+
+In this step, the following files are added and/or modified:
+
+  * The `appengineapi_kit.api.Model` class contains some additional
+    methods for retrieving and setting keys and for reading and
+    writing objects to an abstract "store" of objects.
+  * The `test` folder has an updated `apihandler.RequestHandler` which
+    includes additional routes for creating, updating and deleting model
+    data.
 
