@@ -62,7 +62,18 @@ class ModelProperty(object):
 		if type(value) in (basestring,bool,int,long):
 			return value
 		return "%s" % value
-	
+
+class KeyProperty(ModelProperty):
+	"""Key property for a model"""
+
+	# PUBLIC METHODS
+	def validate(self,name,value):
+		"""Validate key value which should be a positive integer"""
+		ModelProperty.validate(self,name,value)
+		if value <= 0:
+			raise ValueError("KeyProperty.validate: value should be positive integer")
+		return value
+
 class StringProperty(ModelProperty):
 	"""String Model Property class"""
 	
@@ -109,6 +120,7 @@ class Model(object):
 	def __init__(self,**kwargs):
 		self._properties = self._get_properties()
 		self._values = { }
+		self._key = KeyProperty()
 		for (k,v) in self._properties.iteritems():
 			if k in kwargs:
 				self[k] = kwargs[k]
@@ -137,6 +149,12 @@ class Model(object):
 		else:
 			return self.__name__
 
+	def set_key(self,value):
+		self._values['_key'] = self._key.validate('_key',value)
+	def get_key(self):
+		return self._values.get('_key')
+	key = property(get_key,set_key)
+
 	def __setitem__(self,name,value):
 		""" Set value for model object """
 		model_property = self._get_property(name)
@@ -151,6 +169,8 @@ class Model(object):
 		response = {
 			'_type': self.get_model_name()
 		}
+		if self.key:
+			response['_key'] = self.key
 		for (k,p) in self._properties.iteritems():
 			response[k] = p.as_json(self._values[k])
 		return response
