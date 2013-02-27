@@ -255,4 +255,34 @@ In this step, the following files are added and/or modified:
   * The `test` folder has an updated `apihandler.RequestHandler` which
     includes additional routes for creating, updating and deleting model
     data.
+  * The `etc` folder contains a test JSON request to create a new object
+    in the file `addressbook_sample.json`.
+
+A new route and new method are provided in the `appengineapi_kit.api.Request`
+class:
+
+```python
+class RequestHandler(api.RequestHandler):
+	...
+	def create_object(self,path,entry):
+		"""Create new AddressBookEntry object"""
+		...
+		return self.response_json(entry)
+	...
+	routes = (
+		...
+		(api.RequestHandler.METHOD_PUT,r"^/?([\w\/]*)$",create_object)
+	)
+```
+
+The `create_object` method can be tested using the following command line:
+
+```
+curl -d @etc/addressbook_sample.json -X PUT http://localhost:8080/api/test
+=> {'_type': 'AddressBookEntry', '_key': 1, 'email': 'joan@smith.com', 'name': 'Joan Smith'}
+```
+
+Here, the request data is decoded into an `AddressBookEntry` model object, and the method
+`appengineapi_kit.api.Model.put()` is called, which assigns a new unique `_key` property
+for the model. The saved object is encoded into JSON and returned to the client.
 

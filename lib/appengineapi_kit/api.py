@@ -174,6 +174,11 @@ class Model(object):
 		for (k,p) in self._properties.iteritems():
 			response[k] = p.as_json(self._values[k])
 		return response
+	
+	def put(self):
+		"""Store object in data store"""
+		# TODO: actually store in datastore
+		self.set_key(1)
 
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
@@ -200,12 +205,6 @@ class RequestHandler(webapp2.RequestHandler):
 			return None
 		assert isinstance(self.routes,tuple) or isinstance(self.routes,list),"_get_routes: Invalid routes class property"
 		return self.routes
-	def _get_models(self):
-		"""Return tuple of models"""
-		if not 'models' in vars(self.__class__):
-			return None
-		assert isinstance(self.models,tuple) or isinstance(self.routes,list),"_get_models: Invalid models class property"
-		return self.models
 	def _decode_method(self):
 		"""Decode the method into constants"""
 		if self.request.method=='GET':
@@ -217,9 +216,13 @@ class RequestHandler(webapp2.RequestHandler):
 		if self.request.method=='PUT':
 			return RequestHandler.PUT
 		return None
-	def _decode_request_model(self,model,obj):
+	def _decode_request_model(self,model_name,json):		
 		"""Decode request body from JSON into a api.Model object"""
-		raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type %s" % model)
+		assert isinstance(json,dict),"_decode_request_model: Invalid json argument"
+		model = self._models.get(model_name)
+		if not issubclass(model,Model):
+			raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type %s" % model_name)
+		return (model)(**json)
 	def _decode_request(self):
 		"""Decode request body from JSON into a Python object"""
 		try:

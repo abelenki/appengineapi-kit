@@ -1,1 +1,6 @@
-{'_type': 'AddressBookEntry', 'email': 'None', 'name': 'Joan Smith'}
+{
+	"_type": "AddressBookEntry",
+	"email": "joan@smith.com",
+	"name": "Joan Smith"
+}
+
