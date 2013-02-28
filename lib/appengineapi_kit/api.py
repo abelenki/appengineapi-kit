@@ -121,6 +121,7 @@ class Model(object):
 		self._properties = self._get_properties()
 		self._values = { }
 		self._key = KeyProperty()
+		self._is_saved = False
 		for (k,v) in self._properties.iteritems():
 			if k in kwargs:
 				self[k] = kwargs[k]
@@ -149,11 +150,12 @@ class Model(object):
 		else:
 			return self.__name__
 
-	def set_key(self,value):
+	def _set_key(self,value):
 		self._values['_key'] = self._key.validate('_key',value)
-	def get_key(self):
+	def key(self):
 		return self._values.get('_key')
-	key = property(get_key,set_key)
+	def is_saved(self):
+		return self._is_saved
 
 	def __setitem__(self,name,value):
 		""" Set value for model object """
@@ -169,16 +171,32 @@ class Model(object):
 		response = {
 			'_type': self.get_model_name()
 		}
-		if self.key:
-			response['_key'] = self.key
+		if self.key():
+			response['_key'] = self.key()
 		for (k,p) in self._properties.iteritems():
 			response[k] = p.as_json(self._values[k])
 		return response
 	
 	def put(self):
 		"""Store object in data store"""
-		# TODO: actually store in datastore
-		self.set_key(1)
+		if self.key():
+			logging.warn("TODO: Update existing object in data store (key=%s)" % self.key())
+		else:
+			self._set_key(1)
+			logging.warn("TODO: Add new object in data store (key=%s)" % self.key())
+		self._is_saved = True
+	
+	def delete(self):
+		"""Delete object from the data store"""
+		logging.warn("TODO: Delete object from data store.")
+		self._set_key(None)
+		self._is_saved = False
+		
+	@classmethod
+	def get_by_key(self,key):
+		"""Retrieve object from the data store by key"""
+		logging.warn("TODO: Retrieve object from data store (key=%s)" % key)
+		return None
 
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
