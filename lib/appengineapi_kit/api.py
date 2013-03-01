@@ -8,6 +8,7 @@ import re, logging
 
 # GAE imports
 import webapp2, simplejson
+from google.appengine.ext import db
 
 class HTTPException(Exception):
 	""" HTTP specific error response """
@@ -43,7 +44,7 @@ class HTTPException(Exception):
 	
 	# PUBLIC METHODS
 	def as_json(self):
-		return { 'code': self.code, 'reason': self.reason }
+		return { '_type': type(self).__name__, 'code': self.code, 'reason': self.reason }
 
 class ModelProperty(object):
 	"""Abstract Model Property class"""
@@ -113,16 +114,46 @@ class IntegerProperty(ModelProperty):
 		if value and self._maxvalue != None and value > self._maxvalue:
 			raise ValueError("IntegerProperty.validate: MAXVALUE condition fails for property '%s'" % name)
 		return value
+
+class DatastoreModelError(Exception):
+	pass
+
+class DatastoreModel(db.Expando):
+	def __init__(self,**kwargs):
+		db.Expando.__init__(self,**kwargs)
+	@classmethod
+	def _impl_get_by_key(self,key):
+		obj = self.get_by_id(key)
+		logging.info("obj = %s" % obj)
+		return obj
+	def _impl_update(self):
+		try:
+			super(DatastoreModel,self).put()
+			return super(DatastoreModel,self).key()
+		except db.NotSavedError, e:
+			raise DatastoreModelError("Data not updated for model '%s', key %s" % (self.get_model_name(),self.key()))
+	def _impl_insert(self):
+		try:
+			super(DatastoreModel,self).put()
+			return super(DatastoreModel,self).key().id()
+		except db.NotSavedError, e:
+			raise DatastoreModelError("Data not inserted for model '%s'" % self.get_model_name())
+	def _impl_delete(self):
+		super(DatastoreModel,self).delete()
+	def _impl_is_saved(self):
+		return super(DatastoreModel,self).is_saved()
+	def _impl_get_key_value(self):
+		return super(DatastoreModel,self).key().id()
 	
-class Model(object):
+class Model(DatastoreModel):
 	"""Abstract Model class"""
 	
 	def __init__(self,**kwargs):
-		self._properties = self._get_properties()
-		self._values = { }
-		self._key = KeyProperty()
-		self._is_saved = False
-		for (k,v) in self._properties.iteritems():
+		DatastoreModel.__init__(self,**kwargs)
+		self.__properties = self._get_properties()
+		self.__values = { }
+		self.__key = KeyProperty()
+		for (k,v) in self.__properties.iteritems():
 			if k in kwargs:
 				self[k] = kwargs[k]
 			else:
@@ -139,7 +170,7 @@ class Model(object):
 		return properties
 
 	def _get_property(self,name):
-		return self._properties[name]
+		return self.__properties[name]
 
 	@classmethod
 	def get_model_name(self):
@@ -149,22 +180,18 @@ class Model(object):
 			return self.model_name
 		else:
 			return self.__name__
-
-	def _set_key(self,value):
-		self._values['_key'] = self._key.validate('_key',value)
 	def key(self):
-		return self._values.get('_key')
+		return self._impl_get_key_value()
 	def is_saved(self):
-		return self._is_saved
-
+		return self._impl_is_saved()
 	def __setitem__(self,name,value):
 		""" Set value for model object """
 		model_property = self._get_property(name)
-		self._values[name] = model_property.validate(name,value)
+		self.__values[name] = model_property.validate(name,value)
         
 	def __getitem__(self,name):
 		""" Get value for model object """
-		return self._values[name]
+		return self.__values[name]
 		
 	def as_json(self):
 		"""Return model object as JSON with JSON-compliant values"""
@@ -173,30 +200,22 @@ class Model(object):
 		}
 		if self.key():
 			response['_key'] = self.key()
-		for (k,p) in self._properties.iteritems():
-			response[k] = p.as_json(self._values[k])
+		for (k,p) in self.__properties.iteritems():
+			response[k] = p.as_json(self.__values[k])
 		return response
-	
 	def put(self):
 		"""Store object in data store"""
-		if self.key():
-			logging.warn("TODO: Update existing object in data store (key=%s)" % self.key())
+		if self.is_saved():
+			self._impl_update()
 		else:
-			self._set_key(1)
-			logging.warn("TODO: Add new object in data store (key=%s)" % self.key())
-		self._is_saved = True
-	
+			self._impl_insert()
 	def delete(self):
 		"""Delete object from the data store"""
-		logging.warn("TODO: Delete object from data store.")
-		self._set_key(None)
-		self._is_saved = False
-		
+		self._impl_delete()
 	@classmethod
 	def get_by_key(self,key):
 		"""Retrieve object from the data store by key"""
-		logging.warn("TODO: Retrieve object from data store (key=%s)" % key)
-		return None
+		return self._impl_get_by_key(key)
 
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""

@@ -13,18 +13,18 @@ class AddressBookEntry(api.Model):
 	name = api.StringProperty(notnull=True,minlength=0,maxlength=100)
 	email = api.StringProperty(notnull=False,minlength=0,maxlength=100)
 
-objects = (
-	AddressBookEntry(name="Fred Bloggs",email="fred@bloggs.com"),
-	AddressBookEntry(name="Joan Smith"),
-	AddressBookEntry(name="Roger Jones",email="roger@hotmail.com")	
-)
-
 class RequestHandler(api.RequestHandler):
 	"""Implementation of the Address Book API"""
 
-	def get_object(self,*path):
+	def get_object(self,model_name,key):
 		"""Get AddressBookEntry object"""
-		return self.response_json(objects[1])
+		if model_name != "AddressBookEntry":
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting AddressBookEntry")
+		entry = AddressBookEntry.get_by_key(long(key))
+		if not entry:
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
+		assert isinstance(entry,AddressBookEntry)
+		return self.response_json(entry)
 	def create_object(self,path,entry):
 		"""Create new AddressBookEntry object"""
 		if not isinstance(entry,AddressBookEntry):
@@ -61,7 +61,7 @@ class RequestHandler(api.RequestHandler):
 		AddressBookEntry,
 	)
 	routes = (
-		(api.RequestHandler.METHOD_GET,r"^/?([\w\/]*)$",get_object),
+		(api.RequestHandler.METHOD_GET,r"^/?(\w+)/([1-9][0-9]*)$",get_object),
 		(api.RequestHandler.METHOD_POST,r"^/?([\w\/]*)$",create_object),
 		(api.RequestHandler.METHOD_PUT,r"^/?(\w+)/([1-9][0-9]*)$",update_object),
 		(api.RequestHandler.METHOD_DELETE,r"^/?(\w+)/([1-9][0-9]*)$",delete_object)
