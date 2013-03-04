@@ -3,6 +3,9 @@
 
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
+# Python imports
+import logging
+
 # Imports from appengineapi-kit
 from appengineapi_kit import api,gaedatastore,googlecloudsql
 
@@ -15,49 +18,50 @@ class AddressBookEntry(api.Model):
 
 class RequestHandler(api.RequestHandler):
 	"""Implementation of the Address Book API"""
-
-	def get_object(self,model_name,key):
+	def get_object(self,name,key):
 		"""Get AddressBookEntry object"""
-		if model_name != "AddressBookEntry":
-			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting AddressBookEntry")
+		if name != "addressbook_entry":
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting addressbook_entry")
 		entry = AddressBookEntry.get_by_key(long(key))
 		if not entry:
-			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No addressbook_entry entity with key %s" % key)
 		assert isinstance(entry,AddressBookEntry)
 		return self.response_json(entry)
 	def create_object(self,path,entry):
 		"""Create new AddressBookEntry object"""
 		if not isinstance(entry,AddressBookEntry):
-			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting AddressBookEntry")
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting addressbook_entry")
 		# create object
 		entry.put()
-		# return object's unique key
-		return self.response_json(entry.key())
-	def delete_object(self,model_name,key):
+		# return entity
+		return self.response_json(entry)
+	def delete_object(self,name,key):
 		"""Delete object by key"""
-		if model_name != "AddressBookEntry":
-			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting AddressBookEntry")
+		if name != "addressbook_entry":
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting addressbook_entry")
 		# Retrieve object from data store
 		obj = AddressBookEntry.get_by_key(long(key))
 		if not obj:
-			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No addressbook_entry entity with key %s" % key)
 		# Delete the object
 		obj.delete()
 		# return true
 		return self.response_json(True)
-	def update_object(self,model_name,key,entry):
+	def update_object(self,name,key,entry):
 		"""Update object by key"""
-		if model_name != "AddressBookEntry" or not isinstance(entry,AddressBookEntry):
-			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting AddressBookEntry")
+		if name != "addressbook_entry" or (not isinstance(entry,AddressBookEntry) and not isinstance(entry,dict)):
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request, expecting addressbook_entry")
 		# Retrieve object from data store
 		obj = AddressBookEntry.get_by_key(long(key))
 		if not obj:
-			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No addressbook_entry entity with key %s" % key)
 		# Update the object, put back
-		obj.update(entry)
-		obj.put()
+		try:
+			obj.update(entry)
+		except TypeError, e:
+			raise api.HTTPException(api.HTTPException.STATUS_BADREQUEST,"Bad request: %s" % e)
 		# return true
-		return self.response_json(entry)
+		return self.response_json(obj)
 	models = (
 		AddressBookEntry,
 	)

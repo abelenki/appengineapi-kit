@@ -31,8 +31,8 @@ class DatastoreModel(db.Expando):
 
 class Datastore(api.AbstractDatastore):
 	""""Factory class which generates Google App Engine datastore model objects"""
-	def get_model_class(self,name):
-		assert isinstance(name,basestring) and len(name),"Datastore.get_model_class: Invalid model class name"
+	def get_model_class(self):
 		# return a new model object
-		model_class = type(name,(DatastoreModel,),{ })
+		entity_name = self.get_entity_name()
+		model_class = type(entity_name,(DatastoreModel,),{ })
 		return model_class

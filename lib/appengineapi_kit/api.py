@@ -104,14 +104,19 @@ class IntegerProperty(ModelProperty):
 		return value
 
 class AbstractDatastore(object):
-	def get_model_class(self,name):
+	def __init__(self,entity_name):
+		assert isinstance(entity_name,basestring),"AbstractDatastore.__init__: Missing entity_name parameter"
+		self._entity_name = entity_name
+	def get_model_class(self):
 		raise Exception("AbstractDatastore.get_model_class: Calling abstract method")
+	def get_entity_name(self):
+		return self._entity_name
 	
 class Model(object):
 	"""Abstract Model class"""
 	def __init__(self,**kwargs):
 		self.__properties = self._get_properties()
-		self.__proxy_class = self._get_model_proxy_factory().get_model_class(self.get_model_name())
+		self.__proxy_class = self._get_model_proxy_factory().get_model_class()
 		if '_proxy' in kwargs:
 			# proxy object already contains values
 			self.__proxy = kwargs['_proxy']
@@ -139,13 +144,9 @@ class Model(object):
 				properties[name] = value
 		return properties
 	@classmethod
-	def get_model_name(self):
+	def get_kind(self):
 		"""Return name used to represent the model"""
-		if 'model_name' in vars(self):
-			assert isinstance(self.model_name,basestring) and len(self.model_name),"Model.get_name: Invalid model_name"
-			return self.model_name
-		else:
-			return self.__name__
+		return self._get_model_proxy_factory().get_entity_name()
 	def key(self):
 		return self.__proxy.primary_key()
 	def is_saved(self):
@@ -160,7 +161,7 @@ class Model(object):
 	def as_json(self):
 		"""Return model object as JSON with JSON-compliant values"""
 		response = {
-			'_type': self.get_model_name()
+			'_type': self.get_kind()
 		}
 		if self.key():
 			response['_key'] = self.key()
@@ -173,10 +174,26 @@ class Model(object):
 	def delete(self):
 		"""Delete object from the data store"""
 		return self.__proxy.delete()
+	def update(self,values):
+		assert isinstance(values,dict)
+		all_keys = values.keys()
+		# translate values
+		for (name,prop) in self.__properties.iteritems():
+			if name in values:
+				values[name] = prop.validate(name,values[name])
+				all_keys.remove(name)
+		if len(all_keys):
+			raise TypeError("Model.update: invalid update data: %s" % ", ".join(all_keys))
+		# update object with values
+		for (name,prop) in self.__properties.iteritems():
+			if name in values:
+				self.__proxy[name] = values[name]
+		# put the entity back to datastore
+		self.put()
 	@classmethod
 	def get_by_key(self,key):
 		"""Retrieve object from the data store by key"""
-		proxy = self.proxy.get_model_class(self.get_model_name()).get_by_primary_key(key)
+		proxy = self.proxy.get_model_class().get_by_primary_key(key)
 		if proxy:
 			return (self)(_proxy=proxy)
 		else:
@@ -197,9 +214,10 @@ class RequestHandler(webapp2.RequestHandler):
 		# make hash of models which are handled by the API
 		self._models = { }
 		if 'models' in vars(self.__class__):
+			assert isinstance(self.models,tuple) or isinstance(self.models,list),"RequestHandler.__init__: invalid 'models' property"
 			for model in self.models:
 				assert issubclass(model,Model)
-				model_name = model.get_model_name()
+				model_name = model.get_kind()
 				if model_name in self._models:
 					raise ValueError("Two models with same name '%s'" % model_name)
 				self._models[model_name] = model
@@ -225,8 +243,8 @@ class RequestHandler(webapp2.RequestHandler):
 		"""Decode request body from JSON into a api.Model object"""
 		assert isinstance(json,dict),"_decode_request_model: Invalid json argument"
 		model = self._models.get(model_name)
-		if not issubclass(model,Model):
-			raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type %s" % model_name)
+		if model==None or not issubclass(model,Model):
+			raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type '%s'" % model_name)
 		return (model)(**json)
 	def _decode_request(self):
 		"""Decode request body from JSON into a Python object"""

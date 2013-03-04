@@ -1,5 +1,5 @@
 {
-	"_type": "AddressBookEntry",
+	"_type": "addressbook_entry",
 	"email": "joan@smith.com",
 	"name": "Joan Smith"
 }
