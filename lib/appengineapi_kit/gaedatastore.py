@@ -3,9 +3,6 @@
 
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
-# Python imports
-import logging
-
 # GAE imports
 from google.appengine.ext import db
 
