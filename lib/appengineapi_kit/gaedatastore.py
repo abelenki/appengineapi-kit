@@ -9,7 +9,7 @@ from google.appengine.ext import db
 # appengineapi_kit imports
 from appengineapi_kit import api
 
-class DatastoreModel(db.Expando):
+class DataModel(db.Expando,api.AbstractDataModel):
 	""""Implements the Google App Engine datastore model object"""
 	__value = { }
 	def __setitem__(self,name,value):
@@ -29,10 +29,10 @@ class DatastoreModel(db.Expando):
 	def primary_key(self):
 		return super(db.Expando,self).key().id()
 
-class Datastore(api.AbstractDatastore):
+class DataStore(api.AbstractDataStore):
 	""""Factory class which generates Google App Engine datastore model objects"""
 	def get_model_class(self):
 		# return a new model object
 		entity_name = self.get_entity_name()
-		model_class = type(entity_name,(DatastoreModel,),{ })
+		model_class = type(entity_name,(DataModel,),{ })
 		return model_class

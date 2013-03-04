@@ -256,7 +256,8 @@ In this step, the following files are added and/or modified:
     includes additional routes for creating, updating and deleting model
     data.
   * The `etc` folder contains a test JSON request to create a new object
-    in the file `addressbook_sample.json`.
+    in the file `addressbook_sample.json` and a test JSON request for
+    updating data in `addressbook_update.json`
 
 We will assume the API we're designing should do the following things:
 
@@ -282,28 +283,28 @@ class RequestHandler(api.RequestHandler):
 	)
 ```
 
-Here are some samples of how to manipulate the data:
+Here are some samples of how one would manipulate the data using this mechanism:
 
 ```
 # create a new object and return the unique object key
 curl -d @etc/addressbook_sample.json -X POST http://localhost:8080/api/test
-=> 18
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'joan@smith.com', 'name': u'Joan Smith'}
 
 # return the object
-curl -X GET http://localhost:8080/api/test/AddressBookEntry/18
-=> 
+curl -X GET http://localhost:8080/api/test/addressbook_entry/4
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'joan@smith.com', 'name': u'Joan Smith'}
 
-# modify the object
-curl -d @etc/addressbook_sample.json -X PUT http://localhost:8080/api/test/AddressBookEntry/18
-=> 
+# modify the object (to update email address)
+curl -d @etc/addressbook_update.json -X PUT http://localhost:8080/api/test/addressbook_entry/4
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'new_address@bloggs.com', 'name': u'Joan Smith'}
 
 # delete the object
-curl -X DELETE http://localhost:8080/api/test/AddressBookEntry/18
-=> 
+curl -X DELETE http://localhost:8080/api/test/addressbook_entry/4
+=> true
 
 # try and get the object again
-curl -X GET http://localhost:8080/api/test/AddressBookEntry/18
-=> 
+curl -X GET http://localhost:8080/api/test/addressbook_entry/4
+=> {"_type": "HTTPException", "code": 404, "reason": "No addressbook_entry entity with key 4"}
 ```
 
 If we wish to "hook up" the API's models to the App Engine data store (or other data
@@ -313,7 +314,7 @@ implement a "Factory" class which can produce concrete implementations for the `
 class is implemented which contains the following methods:
 
 ```python
-class DatastoreFactory(object):
+class Datastore(object):
 	...
 	def new_model(self):
 		...

@@ -7,11 +7,11 @@ __author__ = "djt@mutablelogic.com (David Thorpe)"
 import logging
 
 # Imports from appengineapi-kit
-from appengineapi_kit import api,gaedatastore,googlecloudsql
+from appengineapi_kit import api,gaedatastore
 
 class AddressBookEntry(api.Model):
 	# STORAGE
-	proxy = gaedatastore.Datastore("addressbook_entry")
+	proxy = gaedatastore.DataStore("addressbook_entry")
 	# PROPERTIES
 	name = api.StringProperty(notnull=True,minlength=0,maxlength=100)
 	email = api.StringProperty(notnull=False,minlength=0,maxlength=100)

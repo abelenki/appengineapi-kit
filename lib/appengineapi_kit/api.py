@@ -103,14 +103,29 @@ class IntegerProperty(ModelProperty):
 			raise ValueError("IntegerProperty.validate: MAXVALUE condition fails for property '%s'" % name)
 		return value
 
-class AbstractDatastore(object):
+class AbstractDataStore(object):
 	def __init__(self,entity_name):
-		assert isinstance(entity_name,basestring),"AbstractDatastore.__init__: Missing entity_name parameter"
+		assert isinstance(entity_name,basestring),"AbstractDataStore.__init__: Missing entity_name parameter"
 		self._entity_name = entity_name
 	def get_model_class(self):
-		raise Exception("AbstractDatastore.get_model_class: Calling abstract method")
+		raise Exception("AbstractDataStore.get_model_class: Calling abstract method")
 	def get_entity_name(self):
 		return self._entity_name
+
+class AbstractDataModel(object):
+	def __setitem__(self,name,value):
+		raise Exception("AbstractDataModel.__setitem__: Calling abstract method")
+	def __getitem__(self,name):
+		raise Exception("AbstractDataModel.__getitem__: Calling abstract method")
+	@classmethod
+	def get_by_primary_key(self,key):
+		raise Exception("AbstractDataModel.get_by_primary_key: Calling abstract method")
+	def put(self):
+		raise Exception("AbstractDataModel.put: Calling abstract method")
+	def delete(self):
+		raise Exception("AbstractDataModel.delete: Calling abstract method")
+	def primary_key(self):
+		raise Exception("AbstractDataModel.primary_key: Calling abstract method")
 	
 class Model(object):
 	"""Abstract Model class"""
@@ -132,7 +147,7 @@ class Model(object):
 	def _get_model_proxy_factory(self):
 		"""Return proxy factory object, which can generate concrete proxy models"""
 		assert 'proxy' in vars(self),"Model._get_model_proxy_factory: missing proxy property"
-		assert isinstance(self.proxy,AbstractDatastore),"Model._get_model_proxy_factory: proxy needs to be subclass of AbstractDatastore"
+		assert isinstance(self.proxy,AbstractDataStore),"Model._get_model_proxy_factory: proxy needs to be subclass of AbstractDataStore"
 		return self.proxy
 	@classmethod
 	def _get_properties(self):
