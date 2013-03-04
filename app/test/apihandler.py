@@ -3,10 +3,12 @@
 
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
-from appengineapi_kit import api
+from appengineapi_kit import api,gaedatastore
 import logging
 
 class AddressBookEntry(api.Model):
+	# STORAGE IMPLEMENTATION
+	proxy = gaedatastore.Datastore()
 	# MODEL NAME
 	model_name = "AddressBookEntry"
 	# PROPERTIES

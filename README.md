@@ -258,30 +258,68 @@ In this step, the following files are added and/or modified:
   * The `etc` folder contains a test JSON request to create a new object
     in the file `addressbook_sample.json`.
 
-A new route and new method are provided in the `appengineapi_kit.api.Request`
-class:
+We will assume the API we're designing should do the following things:
+
+  * The GET method will retrieve a single model object or a series of objects,
+    without altering the data state;
+  * The POST method will create a single object and return the unique key for
+    the object;
+  * The PUT method will update an existing object and return the new object
+    model;
+  * The DELETE method will delete an existing object and return a true or false
+    status.
+
+New routes are provided in the `appengineapi_kit.api.Request` class:
 
 ```python
 class RequestHandler(api.RequestHandler):
 	...
-	def create_object(self,path,entry):
-		"""Create new AddressBookEntry object"""
-		...
-		return self.response_json(entry)
-	...
 	routes = (
-		...
-		(api.RequestHandler.METHOD_PUT,r"^/?([\w\/]*)$",create_object)
+		(api.RequestHandler.METHOD_GET,r"^/?(\w+)/([1-9][0-9]*)$",get_object),
+		(api.RequestHandler.METHOD_POST,r"^/?([\w\/]*)$",create_object),
+		(api.RequestHandler.METHOD_PUT,r"^/?(\w+)/([1-9][0-9]*)$",update_object),
+		(api.RequestHandler.METHOD_DELETE,r"^/?(\w+)/([1-9][0-9]*)$",delete_object)
 	)
 ```
 
-The `create_object` method can be tested using the following command line:
+Here are some samples of how to manipulate the data:
 
 ```
-curl -d @etc/addressbook_sample.json -X PUT http://localhost:8080/api/test
-=> {'_type': 'AddressBookEntry', '_key': 1, 'email': 'joan@smith.com', 'name': 'Joan Smith'}
+# create a new object and return the unique object key
+curl -d @etc/addressbook_sample.json -X POST http://localhost:8080/api/test
+=> 18
+
+# return the object
+curl -X GET http://localhost:8080/api/test/AddressBookEntry/18
+=> 
+
+# modify the object
+curl -d @etc/addressbook_sample.json -X PUT http://localhost:8080/api/test/AddressBookEntry/18
+=> 
+
+# delete the object
+curl -X DELETE http://localhost:8080/api/test/AddressBookEntry/18
+=> 
+
+# try and get the object again
+curl -X GET http://localhost:8080/api/test/AddressBookEntry/18
+=> 
 ```
 
+If we wish to "hook up" the API's models to the App Engine data store (or other data
+stores, such as SQL databases and other remote data store mechanisms), then we need to
+implement a "Factory" class which can produce concrete implementations for the `put`,
+`delete` and `get_by_key` operations required. A new abstract `api.DatastoreModelFactory`
+class is implemented which contains the following methods:
+
+```python
+class DatastoreFactory(object):
+	...
+	def new_model(self):
+		...
+```
+
+ provide model implementations for each 
 Here, the request data is decoded into an `AddressBookEntry` model object, and the method
 `appengineapi_kit.api.Model.put()` is called, which assigns a new unique `_key` property
 for the model. The saved object is encoded into JSON and returned to the client.

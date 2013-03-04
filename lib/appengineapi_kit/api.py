@@ -8,7 +8,6 @@ import re, logging
 
 # GAE imports
 import webapp2, simplejson
-from google.appengine.ext import db
 
 class HTTPException(Exception):
 	""" HTTP specific error response """
@@ -64,17 +63,6 @@ class ModelProperty(object):
 			return value
 		return "%s" % value
 
-class KeyProperty(ModelProperty):
-	"""Key property for a model"""
-
-	# PUBLIC METHODS
-	def validate(self,name,value):
-		"""Validate key value which should be a positive integer"""
-		ModelProperty.validate(self,name,value)
-		if value <= 0:
-			raise ValueError("KeyProperty.validate: value should be positive integer")
-		return value
-
 class StringProperty(ModelProperty):
 	"""String Model Property class"""
 	
@@ -115,50 +103,32 @@ class IntegerProperty(ModelProperty):
 			raise ValueError("IntegerProperty.validate: MAXVALUE condition fails for property '%s'" % name)
 		return value
 
-class DatastoreModelError(Exception):
-	pass
-
-class DatastoreModel(db.Expando):
-	def __init__(self,**kwargs):
-		db.Expando.__init__(self,**kwargs)
-	@classmethod
-	def _impl_get_by_key(self,key):
-		obj = self.get_by_id(key)
-		logging.info("obj = %s" % obj)
-		return obj
-	def _impl_update(self):
-		try:
-			super(DatastoreModel,self).put()
-			return super(DatastoreModel,self).key()
-		except db.NotSavedError, e:
-			raise DatastoreModelError("Data not updated for model '%s', key %s" % (self.get_model_name(),self.key()))
-	def _impl_insert(self):
-		try:
-			super(DatastoreModel,self).put()
-			return super(DatastoreModel,self).key().id()
-		except db.NotSavedError, e:
-			raise DatastoreModelError("Data not inserted for model '%s'" % self.get_model_name())
-	def _impl_delete(self):
-		super(DatastoreModel,self).delete()
-	def _impl_is_saved(self):
-		return super(DatastoreModel,self).is_saved()
-	def _impl_get_key_value(self):
-		return super(DatastoreModel,self).key().id()
+class AbstractDatastore(object):
+	def get_model_class(self,name):
+		raise Exception("AbstractDatastore.get_model_class: Calling abstract method")
 	
-class Model(DatastoreModel):
+class Model(object):
 	"""Abstract Model class"""
-	
 	def __init__(self,**kwargs):
-		DatastoreModel.__init__(self,**kwargs)
 		self.__properties = self._get_properties()
-		self.__values = { }
-		self.__key = KeyProperty()
-		for (k,v) in self.__properties.iteritems():
-			if k in kwargs:
-				self[k] = kwargs[k]
-			else:
-				self[k] = None
-
+		self.__proxy_class = self._get_model_proxy_factory().get_model_class(self.get_model_name())
+		if '_proxy' in kwargs:
+			# proxy object already contains values
+			self.__proxy = kwargs['_proxy']
+		else:
+			# set values from arguments
+			self.__proxy = (self.__proxy_class)()
+			for (k,v) in self.__properties.iteritems():
+				if k in kwargs:
+					self[k] = kwargs[k]
+				else:
+					self[k] = None
+	@classmethod
+	def _get_model_proxy_factory(self):
+		"""Return proxy factory object, which can generate concrete proxy models"""
+		assert 'proxy' in vars(self),"Model._get_model_proxy_factory: missing proxy property"
+		assert isinstance(self.proxy,AbstractDatastore),"Model._get_model_proxy_factory: proxy needs to be subclass of AbstractDatastore"
+		return self.proxy
 	@classmethod
 	def _get_properties(self):
 		""" Get all model properties as dictionary """
@@ -168,31 +138,25 @@ class Model(DatastoreModel):
 			if isinstance(value,ModelProperty):
 				properties[name] = value
 		return properties
-
-	def _get_property(self,name):
-		return self.__properties[name]
-
 	@classmethod
 	def get_model_name(self):
-		"""Return name used to represent the model in communication"""
+		"""Return name used to represent the model"""
 		if 'model_name' in vars(self):
 			assert isinstance(self.model_name,basestring) and len(self.model_name),"Model.get_name: Invalid model_name"
 			return self.model_name
 		else:
 			return self.__name__
 	def key(self):
-		return self._impl_get_key_value()
+		return self.__proxy.primary_key()
 	def is_saved(self):
-		return self._impl_is_saved()
+		return self.__proxy.is_saved()
 	def __setitem__(self,name,value):
 		""" Set value for model object """
-		model_property = self._get_property(name)
-		self.__values[name] = model_property.validate(name,value)
-        
+		model_property = self.__properties[name]
+		self.__proxy[name] = model_property.validate(name,value)
 	def __getitem__(self,name):
 		""" Get value for model object """
-		return self.__values[name]
-		
+		return self.__proxy[name]
 	def as_json(self):
 		"""Return model object as JSON with JSON-compliant values"""
 		response = {
@@ -201,21 +165,22 @@ class Model(DatastoreModel):
 		if self.key():
 			response['_key'] = self.key()
 		for (k,p) in self.__properties.iteritems():
-			response[k] = p.as_json(self.__values[k])
+			response[k] = p.as_json(self.__proxy[k])
 		return response
 	def put(self):
 		"""Store object in data store"""
-		if self.is_saved():
-			self._impl_update()
-		else:
-			self._impl_insert()
+		return self.__proxy.put()
 	def delete(self):
 		"""Delete object from the data store"""
-		self._impl_delete()
+		return self.__proxy.delete()
 	@classmethod
 	def get_by_key(self,key):
 		"""Retrieve object from the data store by key"""
-		return self._impl_get_by_key(key)
+		proxy = self.proxy.get_model_class(self.get_model_name()).get_by_primary_key(key)
+		if proxy:
+			return (self)(_proxy=proxy)
+		else:
+			return None
 
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
@@ -234,7 +199,10 @@ class RequestHandler(webapp2.RequestHandler):
 		if 'models' in vars(self.__class__):
 			for model in self.models:
 				assert issubclass(model,Model)
-				self._models[model.get_model_name()] = model
+				model_name = model.get_model_name()
+				if model_name in self._models:
+					raise ValueError("Two models with same name '%s'" % model_name)
+				self._models[model_name] = model
 	# PRIVATE METHODS
 	def _get_routes(self):
 		"""Return tuple of routes"""
