@@ -40,7 +40,7 @@ class RequestHandler(api.RequestHandler):
 		# Retrieve object from data store
 		obj = AddressBookEntry.get_by_key(long(key))
 		if not obj:
-			return self.response_json(False)
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
 		# Delete the object
 		obj.delete()
 		# return true
@@ -52,11 +52,12 @@ class RequestHandler(api.RequestHandler):
 		# Retrieve object from data store
 		obj = AddressBookEntry.get_by_key(long(key))
 		if not obj:
-			return self.response_json(False)
-		# Update the object
+			raise api.HTTPException(api.HTTPException.STATUS_NOTFOUND,"No AddressBookEntry object with key %s" % key)
+		# Update the object, put back
 		obj.update(entry)
+		obj.put()
 		# return true
-		return self.response_json(True)
+		return self.response_json(entry)
 	models = (
 		AddressBookEntry,
 	)
