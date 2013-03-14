@@ -162,6 +162,7 @@ examples of how this might work:
 
 Data model and data design
 --------------------------
+
 The third step to build the application is to store some data on the server
 when it's passed through from the client. You can switch to the 'step3' 
 branch to demonstrate this here:
@@ -170,4 +171,157 @@ branch to demonstrate this here:
 git checkout -b step3
 ```
 
-Proceed to this branch where the README.md file contains the next steps.
+In this step, the following files are added and/or modified:
+
+  * The `appengineapi_kit.api` module contains Model and
+    ModelProperty classes.
+  * The `test` folder has an updated `apihandler.RequestHandler` which
+    defines the models which are allowable instances for API requests
+    and responses.
+
+By defining classes which inherit from `api.Model`, your code can
+create clean interfaces to communicate to and from external clients.
+Here is an example 'AddressBookEntry' model which could be used to
+communicate:
+
+```python
+class AddressBookEntry(api.Model):
+	# MODEL NAME
+	model_name = "AddressBookEntry"
+	# PROPERTIES
+	name = api.StringProperty(notnull=True,minlength=0,maxlength=100)
+	email = api.StringProperty(notnull=False,minlength=0,maxlength=100)
+```
+
+Here the `model_name` property defines the unique name for the interface,
+and the members of the model class are defined as `name` and `email`. Some
+additional parameters are used to limit the values that the members can
+contain.
+
+The request handler `test.RequestHandler` then defines the models which
+will be accepted from clients. For example,
+
+```python
+class RequestHandler(api.RequestHandler):
+	def get_object(self,*path):
+		"""Get AddressBookEntry object"""
+		entry = AddressBookEntry(name="Fred Bloggs",email="fred@bloggs.com")
+		return self.response_json(entry)
+
+	models = (
+		AddressBookEntry,
+	)
+	routes = (
+		(api.RequestHandler.METHOD_GET,r"^/?([\w\/]*)$",get_object),
+	)
+```
+
+Here, there is a single route which returns an `AddressBookEntry` object regardless.
+This is now what happens when communicating with the server:
+
+```
+   curl -X GET http://localhost:8080/api/test
+   => {'_type': 'AddressBookEntry', 'email': 'fred@bloggs.com', 'name': 'Fred Bloggs'}
+```
+
+The method `api.RequestHandler.response_json` returns this response by:
+
+  * Checking if the response should be a `api.HTTPException` response, or,
+  * Checking if the response should be a `dict`, `string`, `bool` or `int`, or,
+  * Checking if the response should be an `api.Model`.
+
+In the third case, the `api.Model.as_json` method is used to decode the model object
+into a json response. As well as the model properties, the `_type` property is used
+to return the `model_name` property.
+
+Creating, updating and deleting data
+------------------------------------
+
+Now that it's possible to retrieve individual objects from the API, we can turn our
+attention to the client being able to create, update and delete remote data objects.
+To do this, one needs to be able to address each individual object uniquely, and for
+this each Model needs to have a "key". You can switch to the 'step4' 
+branch to demonstrate this here:
+
+```
+git checkout -b step4
+```
+
+In this step, the following files are added and/or modified:
+
+  * The `appengineapi_kit.api.Model` class contains some additional
+    methods for retrieving and setting keys and for reading and
+    writing objects to an abstract "store" of objects.
+  * The `test` folder has an updated `apihandler.RequestHandler` which
+    includes additional routes for creating, updating and deleting model
+    data.
+  * The `etc` folder contains a test JSON request to create a new object
+    in the file `addressbook_sample.json` and a test JSON request for
+    updating data in `addressbook_update.json`
+
+We will assume the API we're designing should do the following things:
+
+  * The GET method will retrieve a single model object or a series of objects,
+    without altering the data state;
+  * The POST method will create a single object and return the unique key for
+    the object;
+  * The PUT method will update an existing object and return the new object
+    model;
+  * The DELETE method will delete an existing object and return a true or false
+    status.
+
+New routes are provided in the `appengineapi_kit.api.Request` class:
+
+```python
+class RequestHandler(api.RequestHandler):
+	...
+	routes = (
+		(api.RequestHandler.METHOD_GET,r"^/?(\w+)/([1-9][0-9]*)$",get_object),
+		(api.RequestHandler.METHOD_POST,r"^/?([\w\/]*)$",create_object),
+		(api.RequestHandler.METHOD_PUT,r"^/?(\w+)/([1-9][0-9]*)$",update_object),
+		(api.RequestHandler.METHOD_DELETE,r"^/?(\w+)/([1-9][0-9]*)$",delete_object)
+	)
+```
+
+Here are some samples of how one would manipulate the data using this mechanism:
+
+```
+# create a new object and return the unique object key
+curl -d @etc/addressbook_sample.json -X POST http://localhost:8080/api/test
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'joan@smith.com', 'name': u'Joan Smith'}
+
+# return the object
+curl -X GET http://localhost:8080/api/test/addressbook_entry/4
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'joan@smith.com', 'name': u'Joan Smith'}
+
+# modify the object (to update email address)
+curl -d @etc/addressbook_update.json -X PUT http://localhost:8080/api/test/addressbook_entry/4
+=> {'_key': 4L, '_type': 'addressbook_entry', 'email': u'new_address@bloggs.com', 'name': u'Joan Smith'}
+
+# delete the object
+curl -X DELETE http://localhost:8080/api/test/addressbook_entry/4
+=> true
+
+# try and get the object again
+curl -X GET http://localhost:8080/api/test/addressbook_entry/4
+=> {"_type": "HTTPException", "code": 404, "reason": "No addressbook_entry entity with key 4"}
+```
+
+If we wish to "hook up" the API's models to the App Engine data store (or other data
+stores, such as SQL databases and other remote data store mechanisms), then we need to
+implement a "Factory" class which can produce concrete implementations for the `put`,
+`delete` and `get_by_key` operations required. A new abstract `api.DatastoreModelFactory`
+class is implemented which contains the following methods:
+
+```python
+class Datastore(object):
+	...
+	def new_model(self):
+		...
+```
+
+ provide model implementations for each 
+Here, the request data is decoded into an `AddressBookEntry` model object, and the method
+`appengineapi_kit.api.Model.put()` is called, which assigns a new unique `_key` property
+for the model. The saved object is encoded into JSON and returned to the client.
+
