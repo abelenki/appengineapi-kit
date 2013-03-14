@@ -2,6 +2,7 @@
 
 # These are the settings you can change
 HTTP_HOSTNAME=`hostname`
+
 HTTP_PORT=8080
 
 # Derived settings - do not change
