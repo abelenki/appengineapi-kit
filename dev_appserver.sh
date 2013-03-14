@@ -6,10 +6,20 @@ HTTP_PORT=8080
 
 # Derived settings - do not change
 CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-FLAGS="--admin_console_server --use_sqlite --port=${HTTP_PORT}"
+FLAGS="--port=${HTTP_PORT} --admin_console_server --use_sqlite"
 PYTHON_PATH=`which python`
 GAE_PATH=`which dev_appserver.py`
 PROJECT_PATH=${CURRENT_PATH}
+
+if [ "$PYTHON_PATH" = "" ] ; then
+  echo "Missing python binary"
+  exit -1
+fi
+
+if [ "$GAE_PATH" = "" ] ; then
+  echo "Missing dev_appserver.py binary (is GoogleAppEngine installed?)"
+  exit -1
+fi
 
 echo "------------------------------------------------------------------"
 echo -n "Project: "
