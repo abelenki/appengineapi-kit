@@ -124,6 +124,8 @@ class AbstractDataModel(object):
 	@classmethod
 	def get_by_primary_key(self,key):
 		raise Exception("AbstractDataModel.get_by_primary_key: Calling abstract method")
+	def get_select(self,model,**kwargs):
+		raise Exception("AbstractDataModel.get_select: Calling abstract method")
 	def put(self):
 		raise Exception("AbstractDataModel.put: Calling abstract method")
 	def delete(self):
@@ -166,6 +168,10 @@ class Model(object):
 	def get_kind(self):
 		"""Return name used to represent the model"""
 		return self._get_model_proxy_factory().get_entity_name()
+	@classmethod
+	def get_select(self,**kwargs):
+		"""Return select statement used to represent the model"""
+		return self._get_model_proxy_factory().get_select(self,**kwargs)
 	def key(self):
 		return self.__proxy.primary_key()
 	def is_saved(self):

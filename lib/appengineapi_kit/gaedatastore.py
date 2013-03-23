@@ -7,7 +7,13 @@ __author__ = "djt@mutablelogic.com (David Thorpe)"
 from google.appengine.ext import db
 
 # appengineapi_kit imports
-from appengineapi_kit import api
+from appengineapi_kit import api,query
+
+class Select(query.Select):
+	def run(self):
+		sql = self.as_sql()
+		bindings = self.bindings()
+		return db.GqlQuery(sql,*bindings).run()
 
 class DataModel(db.Expando,api.AbstractDataModel):
 	""""Implements the Google App Engine datastore model object"""
@@ -36,3 +42,6 @@ class DataStore(api.AbstractDataStore):
 		entity_name = self.get_entity_name()
 		model_class = type(entity_name,(DataModel,),{ })
 		return model_class
+	def get_select(self,model,**kwargs):
+		return Select(model,**kwargs)
+
