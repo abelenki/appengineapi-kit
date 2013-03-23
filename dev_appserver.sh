@@ -2,12 +2,11 @@
 
 # These are the settings you can change
 HTTP_HOSTNAME=`hostname`
-
 HTTP_PORT=8080
 
 # Derived settings - do not change
 CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-FLAGS="--port=${HTTP_PORT} --admin_console_server --use_sqlite"
+FLAGS="--host=${HTTP_HOSTNAME} --port=${HTTP_PORT}"
 PYTHON_PATH=`which python`
 GAE_PATH=`which dev_appserver.py`
 PROJECT_PATH=${CURRENT_PATH}
@@ -23,6 +22,8 @@ if [ "$GAE_PATH" = "" ] ; then
 fi
 
 echo "------------------------------------------------------------------"
+echo -n " Python: "
+echo -n `${PYTHON_PATH} -V`
 echo -n "Project: "
 echo `basename ${PROJECT_PATH}`
 echo -n "  Flags: "

@@ -7,7 +7,8 @@ __author__ = "djt@mutablelogic.com (David Thorpe)"
 import re, logging
 
 # GAE imports
-import webapp2, simplejson
+import webapp2
+from django.utils import simplejson
 
 class HTTPException(Exception):
 	""" HTTP specific error response """
