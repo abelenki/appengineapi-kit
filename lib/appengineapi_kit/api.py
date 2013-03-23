@@ -10,6 +10,9 @@ import re, logging
 import webapp2
 from django.utils import simplejson
 
+# Local imports
+from appengineapi_kit import query
+
 class HTTPException(Exception):
 	""" HTTP specific error response """
 	
@@ -214,6 +217,10 @@ class Model(object):
 			return (self)(_proxy=proxy)
 		else:
 			return None
+	@classmethod
+	def get_query(self):
+		"""Return query object"""
+		return query.Query(self)
 
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
@@ -286,7 +293,7 @@ class RequestHandler(webapp2.RequestHandler):
 			self.response.write(simplejson.dumps(obj.as_json()))
 		elif type(obj) in (basestring,bool,int,long,list,tuple,dict):
 			self.response.write(simplejson.dumps(obj))
-		elif isinstance(obj,Model):
+		elif isinstance(obj,(Model,query.Feed)):
 			self.response.write(obj.as_json())
 		else:
 			e = HTTPException(code=HTTPException.STATUS_SERVERERROR,reason="Invalid response object: %s" % type(obj).__name__)
