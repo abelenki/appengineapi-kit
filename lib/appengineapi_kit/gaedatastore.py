@@ -10,10 +10,15 @@ from google.appengine.ext import db
 from appengineapi_kit import api,query
 
 class Select(query.Select):
-	def run(self):
-		sql = self.as_sql()
+	"""Implements specific methods for the query/select for App Engine datastore"""
+	def run(self,limit):
+		# obtain an empty feed object
+		feed = super(Select,self).run(limit)
+		# run the query
 		bindings = self.bindings()
-		return db.GqlQuery(sql,*bindings).run()
+		items = db.GqlQuery(self.as_sql(),*bindings).run(limit=limit)
+		# return the feed
+		return feed
 
 class DataModel(db.Expando,api.AbstractDataModel):
 	""""Implements the Google App Engine datastore model object"""

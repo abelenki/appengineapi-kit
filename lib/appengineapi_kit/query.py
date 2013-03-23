@@ -61,4 +61,5 @@ class Query(object):
 	def execute(self,limit=None):
 		assert limit==None or (isinstance(limit,(int,long)) and limit > 0)
 		s = self._model.get_select()
+		logging.info("SELECT = %s" % s)
 		return s.run(limit)

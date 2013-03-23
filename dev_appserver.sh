@@ -6,7 +6,7 @@ HTTP_PORT=8080
 
 # Derived settings - do not change
 CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-FLAGS="--host=${HTTP_HOSTNAME} --port=${HTTP_PORT}"
+FLAGS="--address=${HTTP_HOSTNAME} --port=${HTTP_PORT}"
 PYTHON_PATH=`which python`
 GAE_PATH=`which dev_appserver.py`
 PROJECT_PATH=${CURRENT_PATH}
