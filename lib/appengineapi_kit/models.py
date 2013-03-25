@@ -3,6 +3,9 @@
 
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
+# appengineapi-kit imports
+import appengineapi_kit.query
+
 # ABSTRACTIONS
 
 class AbstractDataStore(object):

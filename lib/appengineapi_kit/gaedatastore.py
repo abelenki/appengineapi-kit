@@ -3,6 +3,9 @@
 
 __author__ = "djt@mutablelogic.com (David Thorpe)"
 
+# Python imports
+import logging
+
 # GAE imports
 from google.appengine.ext import db
 
@@ -14,10 +17,13 @@ class Select(query.Select):
 	def run(self,limit):
 		# obtain an empty feed object
 		feed = super(Select,self).run(limit)
-		# run the query
-		bindings = self.bindings()
-		items = db.GqlQuery(self.as_sql(),*bindings).run(limit=limit)
-		# return the feed
+		# get query object
+		query = self._model.proxy.get_model_class().gql("")
+		# iterate over returned items
+		for item in query.run(limit=limit):
+			entity = (self._model)(_proxy=item)
+			feed.append(entity)
+		# return feed
 		return feed
 
 class DataModel(db.Expando,models.AbstractDataModel):
