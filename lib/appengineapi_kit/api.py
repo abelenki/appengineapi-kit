@@ -11,7 +11,7 @@ import webapp2
 from django.utils import simplejson
 
 # appengineapi-kit imports
-from appengineapi_kit import query, model
+from appengineapi_kit import query, models
 
 class HTTPException(Exception):
 	""" HTTP specific error response """
@@ -49,32 +49,6 @@ class HTTPException(Exception):
 	def as_json(self):
 		return { '_type': type(self).__name__, 'code': self.code, 'reason': self.reason }
 
-class AbstractDataStore(object):
-	def __init__(self,entity_name):
-		assert isinstance(entity_name,basestring),"AbstractDataStore.__init__: Missing entity_name parameter"
-		self._entity_name = entity_name
-	def get_model_class(self):
-		raise Exception("AbstractDataStore.get_model_class: Calling abstract method")
-	def get_entity_name(self):
-		return self._entity_name
-
-class AbstractDataModel(object):
-	def __setitem__(self,name,value):
-		raise Exception("AbstractDataModel.__setitem__: Calling abstract method")
-	def __getitem__(self,name):
-		raise Exception("AbstractDataModel.__getitem__: Calling abstract method")
-	@classmethod
-	def get_by_primary_key(self,key):
-		raise Exception("AbstractDataModel.get_by_primary_key: Calling abstract method")
-	def get_select(self,model,**kwargs):
-		raise Exception("AbstractDataModel.get_select: Calling abstract method")
-	def put(self):
-		raise Exception("AbstractDataModel.put: Calling abstract method")
-	def delete(self):
-		raise Exception("AbstractDataModel.delete: Calling abstract method")
-	def primary_key(self):
-		raise Exception("AbstractDataModel.primary_key: Calling abstract method")
-
 class RequestHandler(webapp2.RequestHandler):
 	"""Class to handle generic AJAX requests"""
 
@@ -92,7 +66,7 @@ class RequestHandler(webapp2.RequestHandler):
 		if 'models' in vars(self.__class__):
 			assert isinstance(self.models,tuple) or isinstance(self.models,list),"RequestHandler.__init__: invalid 'models' property"
 			for model in self.models:
-				assert issubclass(model,model.Model)
+				assert issubclass(model,models.Model)
 				model_name = model.get_kind()
 				if model_name in self._models:
 					raise ValueError("Two models with same name '%s'" % model_name)
@@ -119,7 +93,7 @@ class RequestHandler(webapp2.RequestHandler):
 		"""Decode request body from JSON into a api.Model object"""
 		assert isinstance(json,dict),"_decode_request_model: Invalid json argument"
 		model = self._models.get(model_name)
-		if model==None or not issubclass(model,model.Model):
+		if model==None or not issubclass(model,models.Model):
 			raise HTTPException(HTTPException.STATUS_BADREQUEST,"Bad request of type '%s'" % model_name)
 		return (model)(**json)
 	def _decode_request(self):
@@ -144,9 +118,9 @@ class RequestHandler(webapp2.RequestHandler):
 		if isinstance(obj,HTTPException):
 			self.error(obj.code)
 			self.response.write(simplejson.dumps(obj.as_json()))
-		elif type(obj) in (basestring,bool,int,long,list,tuple,dict):
+		elif isinstance(obj,(basestring,bool,int,long,list,tuple,dict)):
 			self.response.write(simplejson.dumps(obj))
-		elif isinstance(obj,(model.Model,query.Feed)):
+		elif isinstance(obj,(models.Model,query.Feed)):
 			self.response.write(obj.as_json())
 		else:
 			e = HTTPException(code=HTTPException.STATUS_SERVERERROR,reason="Invalid response object: %s" % type(obj).__name__)
