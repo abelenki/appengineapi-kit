@@ -121,7 +121,7 @@ class RequestHandler(webapp2.RequestHandler):
 		elif isinstance(obj,(basestring,bool,int,long,list,tuple,dict)):
 			self.response.write(simplejson.dumps(obj))
 		elif isinstance(obj,(models.Model,query.Feed)):
-			self.response.write(obj.as_json())
+			self.response.write(simplejson.dumps(obj.as_json()))
 		else:
 			e = HTTPException(code=HTTPException.STATUS_SERVERERROR,reason="Invalid response object: %s" % type(obj).__name__)
 			self.error(e.code)
